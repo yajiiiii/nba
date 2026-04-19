@@ -1,0 +1,19 @@
+<svg width="1200" height="675" viewBox="0 0 1200 675" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="675" rx="32" fill="#090909"/>
+  <rect x="32" y="32" width="1136" height="611" rx="28" fill="url(#paint0_linear)"/>
+  <circle cx="220" cy="148" r="170" fill="#007A33" fill-opacity="0.32"/>
+  <circle cx="1032" cy="520" r="220" fill="#F58426" fill-opacity="0.2"/>
+  <text x="88" y="286" fill="#F5F5F5" font-size="112" font-family="Arial Black">BOS</text>
+  <text x="86" y="392" fill="#A3A3A3" font-size="34" font-family="Arial">Celtics vs Knicks</text>
+  <text x="838" y="242" fill="#F5F5F5" font-size="122" font-family="Arial Black">NYK</text>
+  <rect x="88" y="98" width="184" height="42" rx="21" fill="#121212" stroke="#262626"/>
+  <text x="180" y="125" text-anchor="middle" fill="#F5F5F5" font-size="18" font-family="Arial" letter-spacing="4">MARQUEE EAST</text>
+  <text x="86" y="486" fill="#F5F5F5" font-size="46" font-family="Arial Black">Garden lights. Heavyweight pace.</text>
+  <text x="88" y="584" fill="#A3A3A3" font-size="28" font-family="Arial">Madison Square Garden</text>
+  <defs>
+    <linearGradient id="paint0_linear" x1="32" y1="32" x2="1168" y2="643" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#171717"/>
+      <stop offset="1" stop-color="#0F0F0F"/>
+    </linearGradient>
+  </defs>
+</svg>
