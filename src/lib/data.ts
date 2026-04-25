@@ -337,6 +337,7 @@ async function fetchStreamedMatchesSafe(): Promise<StreamedMatch[]> {
 }
 
 export async function getGames(filter: GamesFilter = {}) {
+  noStore();
   const overrides = await readOverrides();
   const overrideSlugs = new Set(overrides.map((o) => o.gameSlug));
   const [liveGames, mockEnriched, cdnMatches, streamedMatches] =

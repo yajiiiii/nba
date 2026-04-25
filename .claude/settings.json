@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:allstreameast.com)",
+      "Bash(node -e \"const i = require\\('lucide-react'\\); console.log\\(['Dribbble','Volleyball','CircleDashed','Disc','CircleDot'].map\\(n => [n, typeof i[n]]\\)\\)\")",
+      "Bash(node -e \"const i = require\\('lucide-react'\\); const names = Object.keys\\(i\\).filter\\(n => /ball|basket|hoop/i.test\\(n\\)\\); console.log\\(names\\);\")"
+    ]
+  }
+}

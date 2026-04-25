@@ -66,9 +66,9 @@ export function HomePageClient({
   const games = gamesQuery.data;
   const standings = standingsQuery.data ?? [];
   const featuredGame =
-    games.find((game) => game.featured) ??
+    games.find((game) => game.featured && game.status !== "finished") ??
     games.find((game) => game.status === "live") ??
-    games[0];
+    games.find((game) => game.status === "upcoming");
 
   const liveGames = games.filter((game) => game.status === "live");
   const upcomingGames = games

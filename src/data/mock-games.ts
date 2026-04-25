@@ -49,7 +49,6 @@ export const mockGames: Game[] = [
     streamUrl: null,
     thumbnail: "/thumbnails/rockets-lakers.svg",
     isLive: true,
-    featured: true,
     quarter: "Q4",
     clock: "02:11",
     headline: "Playoff-energy pace with both backcourts trading clutch runs.",

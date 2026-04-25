@@ -65,7 +65,7 @@ export async function fetchBasketballMatches(): Promise<StreamedMatch[]> {
   if (!STREAMED_ENABLED) return [];
   try {
     const response = await fetch(`${BASE_URL}/matches/basketball`, {
-      next: { revalidate: 60 },
+      cache: "no-store",
     });
     if (!response.ok) return [];
     const data = (await response.json()) as RawMatch[];
@@ -84,7 +84,7 @@ async function fetchStreamsForSource(
   try {
     const response = await fetch(
       `${BASE_URL}/stream/${encodeURIComponent(source)}/${encodeURIComponent(id)}`,
-      { next: { revalidate: 60 } },
+      { cache: "no-store" },
     );
     if (!response.ok) return [];
     return (await response.json()) as RawStream[];

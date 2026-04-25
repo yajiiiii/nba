@@ -100,7 +100,7 @@ export async function fetchNbaMatches(): Promise<CdnLiveTvMatch[]> {
 
   try {
     const response = await fetch(SPORTS_URL, {
-      next: { revalidate: 60 },
+      cache: "no-store",
     });
 
     if (!response.ok) return [];
