@@ -28,8 +28,17 @@ export function ScoreTicker({ games }: { games: GameWithTeams[] }) {
     )
     .slice(0, 6);
 
-  const tickerGames = [...live, ...upcoming, ...finished].slice(0, 14);
-  const marqueeItems = [...tickerGames, ...tickerGames];
+  const tickerGames = [...live, ...upcoming, ...finished].slice(0, 20);
+
+  const MIN_ITEMS = 14;
+  const filler: GameWithTeams[] = [];
+  if (tickerGames.length > 0) {
+    while (tickerGames.length + filler.length < MIN_ITEMS) {
+      filler.push(tickerGames[filler.length % tickerGames.length]);
+    }
+  }
+  const padded = [...tickerGames, ...filler];
+  const marqueeItems = [...padded, ...padded];
 
   return (
     <div className="sticky top-0 z-50 border-b border-white/5 bg-[#050505]/90 backdrop-blur-xl">

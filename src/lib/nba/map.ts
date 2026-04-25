@@ -1,5 +1,5 @@
 import { teams } from "@/data/teams";
-import type { CdnGame } from "@/lib/nba/client";
+import type { CdnGame, ScheduleGame } from "@/lib/nba/client";
 import { resolveTeamSlugByTricode } from "@/lib/nba/team-map";
 import type { Game, GameStatus, GameWithTeams, PlayerGroup, Team } from "@/lib/types";
 
@@ -94,5 +94,73 @@ export function mapCdnGameToGame(cdn: CdnGame): GameWithTeams | null {
 export function mapCdnGamesToGames(cdnGames: CdnGame[]): GameWithTeams[] {
   return cdnGames
     .map(mapCdnGameToGame)
+    .filter((game): game is GameWithTeams => game !== null);
+}
+
+function scheduleStatus(gameStatus: number): GameStatus {
+  if (gameStatus === 2) return "live";
+  if (gameStatus === 3) return "finished";
+  return "upcoming";
+}
+
+export function mapScheduleGameToGame(s: ScheduleGame): GameWithTeams | null {
+  const homeSlug = resolveTeamSlugByTricode(s.homeTeam.teamTricode);
+  const awaySlug = resolveTeamSlugByTricode(s.awayTeam.teamTricode);
+  if (!homeSlug || !awaySlug) return null;
+
+  const home = teamMap[homeSlug];
+  const away = teamMap[awaySlug];
+  if (!home || !away) return null;
+
+  const status = scheduleStatus(s.gameStatus);
+  const slug = slugify(`${away.slug}-vs-${home.slug}-${s.gameId}`);
+  const dateKey = new Date(s.gameDateTimeUTC).toISOString().slice(0, 10);
+  const seriesText = s.seriesText?.trim() ?? "";
+
+  const tags = [seriesText, s.gameLabel].filter(
+    (tag): tag is string => Boolean(tag),
+  );
+
+  const base: Game = {
+    id: s.gameId,
+    slug,
+    homeTeam: home.slug,
+    awayTeam: away.slug,
+    startTime: s.gameDateTimeUTC,
+    status,
+    score: {
+      home: s.homeTeam.score ?? 0,
+      away: s.awayTeam.score ?? 0,
+    },
+    arena: s.arenaName ?? home.arena,
+    streamType: "none",
+    streamUrl: null,
+    thumbnail: "/thumbnails/league-night.svg",
+    isLive: status === "live",
+    featured: status === "live",
+    headline: `${away.name} at ${home.name}`,
+    description: seriesText
+      ? `Playoffs · ${seriesText}`
+      : (s.gameStatusText ?? "Scheduled"),
+    nationalTv: "League Pass",
+    tags: tags.length > 0 ? tags : ["Playoffs"],
+    lineups: { home: emptyLineup, away: emptyLineup },
+    stats: { home: emptyTeamStats, away: emptyTeamStats, leaders: [] },
+  };
+
+  return {
+    ...base,
+    homeTeam: home,
+    awayTeam: away,
+    dateKey,
+    hasStream: false,
+  };
+}
+
+export function mapScheduleGamesToGames(
+  games: ScheduleGame[],
+): GameWithTeams[] {
+  return games
+    .map(mapScheduleGameToGame)
     .filter((game): game is GameWithTeams => game !== null);
 }

@@ -6,8 +6,14 @@ import { unstable_noStore as noStore } from "next/cache";
 import { mockGames } from "@/data/mock-games";
 import { teams } from "@/data/teams";
 import { toDateKey } from "@/lib/formatters";
-import { fetchLiveScoreboard } from "@/lib/nba/client";
-import { mapCdnGamesToGames } from "@/lib/nba/map";
+import {
+  fetchLiveScoreboard,
+  fetchPlayoffUpcomingGames,
+} from "@/lib/nba/client";
+import {
+  mapCdnGamesToGames,
+  mapScheduleGamesToGames,
+} from "@/lib/nba/map";
 import {
   buildSourcesForAllStreamEast,
 } from "@/lib/providers/allstreameast";
@@ -225,31 +231,49 @@ function enrichGames(baseGames: Game[], overrides: StreamOverride[]) {
 async function fetchLiveNbaGames(
   overrides: StreamOverride[],
 ): Promise<GameWithTeams[]> {
-  try {
-    const cdnGames = await fetchLiveScoreboard();
-    const mapped = mapCdnGamesToGames(cdnGames);
-    if (mapped.length === 0) return [];
+  const overrideMap = new Map(
+    overrides.map((override) => [override.gameSlug, override]),
+  );
 
-    const overrideMap = new Map(
-      overrides.map((override) => [override.gameSlug, override]),
-    );
+  const apply = (game: GameWithTeams): GameWithTeams => {
+    const override = overrideMap.get(game.slug);
+    const merged = override
+      ? {
+          ...game,
+          streamType: override.streamType,
+          streamUrl: override.streamUrl,
+          hasStream: Boolean(override.streamUrl),
+        }
+      : game;
+    return applyContextAndCleanup(merged);
+  };
 
-    return mapped.map((game) => {
-      const override = overrideMap.get(game.slug);
-      const merged = override
-        ? {
-            ...game,
-            streamType: override.streamType,
-            streamUrl: override.streamUrl,
-            hasStream: Boolean(override.streamUrl),
-          }
-        : game;
+  const [todayResult, scheduleResult] = await Promise.allSettled([
+    fetchLiveScoreboard(),
+    fetchPlayoffUpcomingGames(),
+  ]);
 
-      return applyContextAndCleanup(merged);
-    });
-  } catch {
-    return [];
+  const todayGames =
+    todayResult.status === "fulfilled"
+      ? mapCdnGamesToGames(todayResult.value).map(apply)
+      : [];
+  const scheduleGames =
+    scheduleResult.status === "fulfilled"
+      ? mapScheduleGamesToGames(scheduleResult.value).map(apply)
+      : [];
+
+  if (todayGames.length === 0 && scheduleGames.length === 0) return [];
+
+  const seen = new Set<string>();
+  const seenIds = new Set<string>();
+  const merged: GameWithTeams[] = [];
+  for (const game of [...todayGames, ...scheduleGames]) {
+    if (seen.has(game.slug) || seenIds.has(game.id)) continue;
+    seen.add(game.slug);
+    seenIds.add(game.id);
+    merged.push(game);
   }
+  return merged;
 }
 
 function mergeGames(
