@@ -58,6 +58,16 @@ export const STREAM_TYPE_OPTIONS: Array<{
     value: "cdnlivetv",
     hint: "Requires NEXT_PUBLIC_ENABLE_UNOFFICIAL_STREAMS=true. Third-party aggregator, not guaranteed legal in all jurisdictions — use at your own risk.",
   },
+  {
+    label: "Unofficial (streamed.pk)",
+    value: "streamed",
+    hint: "Third-party aggregator. Sources auto-resolved per game from the streamed.pk API.",
+  },
+  {
+    label: "Unofficial (allstreameast)",
+    value: "allstreameast",
+    hint: "Third-party aggregator. URL is constructed from team slugs; adjust ALLSTREAMEAST_URL_TEMPLATE if the host pattern changes.",
+  },
 ];
 
 export const UNOFFICIAL_STREAMS_ENABLED = true;

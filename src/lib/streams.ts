@@ -58,6 +58,10 @@ export function getStreamTypeLabel(streamType: StreamType) {
       return "Owned HLS feed";
     case "cdnlivetv":
       return "Unofficial (cdnlivetv)";
+    case "streamed":
+      return "Unofficial (streamed.pk)";
+    case "allstreameast":
+      return "Unofficial (allstreameast)";
     default:
       return "Unavailable";
   }
@@ -99,6 +103,17 @@ export function normalizeStreamUrl(
   if (streamType === "cdnlivetv") {
     if (!/cdnlivetv\.tv/i.test(url.hostname)) {
       throw new Error("cdnlivetv URLs must be on cdnlivetv.tv.");
+    }
+    return url.toString();
+  }
+
+  if (streamType === "streamed") {
+    return url.toString();
+  }
+
+  if (streamType === "allstreameast") {
+    if (!/allstreameast/i.test(url.hostname)) {
+      throw new Error("allstreameast URLs must be on an allstreameast host.");
     }
     return url.toString();
   }

@@ -9,6 +9,9 @@ import { toDateKey } from "@/lib/formatters";
 import { fetchLiveScoreboard } from "@/lib/nba/client";
 import { mapCdnGamesToGames } from "@/lib/nba/map";
 import {
+  buildSourcesForAllStreamEast,
+} from "@/lib/providers/allstreameast";
+import {
   buildSourcesForMatch,
   fetchNbaMatches,
   findChannelsForTeams,
@@ -19,13 +22,8 @@ import {
   buildSourcesForStreamedMatch,
   fetchBasketballMatches,
   findStreamedMatch,
+  type StreamedMatch,
 } from "@/lib/providers/streamed";
-
-const STREAMED_ONLY_SLUGS = new Set(["rockets-vs-lakers"]);
-
-function shouldUseStreamedOnly(game: { slug: string }) {
-  return STREAMED_ONLY_SLUGS.has(game.slug);
-}
 import type {
   Game,
   GamesFilter,
@@ -88,6 +86,110 @@ function sortGames(games: GameWithTeams[]) {
   });
 }
 
+const PLAYOFF_TAG_HINTS = ["playoff", "postseason", "series"];
+
+function isPlayoffWindow(startTime: string) {
+  const date = new Date(startTime);
+  if (Number.isNaN(date.getTime())) return false;
+  const month = date.getUTCMonth();
+  return month === 3 || month === 4 || month === 5;
+}
+
+function hasPlayoffTag(tags: string[] | undefined) {
+  return Boolean(
+    tags?.some((tag) =>
+      PLAYOFF_TAG_HINTS.some((hint) => tag.toLowerCase().includes(hint)),
+    ),
+  );
+}
+
+function buildLiveHeadline(game: GameWithTeams): string {
+  const homeAbbr = game.homeTeam.code;
+  const awayAbbr = game.awayTeam.code;
+  const score = `${awayAbbr} ${game.score.away} – ${homeAbbr} ${game.score.home}`;
+
+  const margin = game.score.home - game.score.away;
+  const leader =
+    margin === 0
+      ? "Tied"
+      : margin > 0
+        ? `${game.homeTeam.name} +${margin}`
+        : `${game.awayTeam.name} +${Math.abs(margin)}`;
+
+  const clockBits = [game.quarter, game.clock].filter(Boolean).join(" ");
+  const live = clockBits ? `${clockBits} · ${score} · ${leader}` : `${score} · ${leader}`;
+
+  const playoff = hasPlayoffTag(game.tags) || isPlayoffWindow(game.startTime);
+  return playoff ? `Playoffs · ${live}` : live;
+}
+
+function buildFinishedHeadline(game: GameWithTeams): string {
+  const homeAbbr = game.homeTeam.code;
+  const awayAbbr = game.awayTeam.code;
+  const homeWon = game.score.home > game.score.away;
+  const winner = homeWon ? game.homeTeam.name : game.awayTeam.name;
+  const final = `Final · ${awayAbbr} ${game.score.away} – ${homeAbbr} ${game.score.home}`;
+  if (game.score.home === game.score.away) return final;
+  const playoff = hasPlayoffTag(game.tags) || isPlayoffWindow(game.startTime);
+  const summary = `${final} · ${winner} wins`;
+  return playoff ? `Playoffs · ${summary}` : summary;
+}
+
+function buildUpcomingHeadline(game: GameWithTeams): string {
+  const matchup = `${game.awayTeam.name} at ${game.homeTeam.name}`;
+  const playoff = hasPlayoffTag(game.tags) || isPlayoffWindow(game.startTime);
+  return playoff ? `Playoffs · ${matchup}` : matchup;
+}
+
+function buildContext(game: GameWithTeams): {
+  headline: string;
+  description: string;
+} {
+  if (game.status === "live") {
+    const headline = buildLiveHeadline(game);
+    const description =
+      game.description && game.description.trim().length > 0
+        ? game.description
+        : `Live now from ${game.arena}. Score and clock update as the game plays.`;
+    return { headline, description };
+  }
+
+  if (game.status === "finished") {
+    const headline = buildFinishedHeadline(game);
+    const description =
+      game.description && game.description.trim().length > 0
+        ? game.description
+        : `Final from ${game.arena}.`;
+    return { headline, description };
+  }
+
+  const headline = buildUpcomingHeadline(game);
+  const description =
+    game.description && game.description.trim().length > 0
+      ? game.description
+      : `Tip-off scheduled at ${game.arena}.`;
+  return { headline, description };
+}
+
+function applyContextAndCleanup(game: GameWithTeams): GameWithTeams {
+  const { headline, description } = buildContext(game);
+
+  if (game.status === "finished") {
+    return {
+      ...game,
+      headline,
+      description,
+      streamType: "none",
+      streamUrl: null,
+      hasStream: false,
+      isLive: false,
+      featured: false,
+    };
+  }
+
+  return { ...game, headline, description };
+}
+
 function enrichGames(baseGames: Game[], overrides: StreamOverride[]) {
   const teamMap = getTeamMap();
   const overrideMap = new Map(
@@ -105,7 +207,7 @@ function enrichGames(baseGames: Game[], overrides: StreamOverride[]) {
 
       const override = overrideMap.get(game.slug);
 
-      return {
+      const enriched: GameWithTeams = {
         ...game,
         streamType: override?.streamType ?? game.streamType,
         streamUrl: override?.streamUrl ?? game.streamUrl,
@@ -113,7 +215,9 @@ function enrichGames(baseGames: Game[], overrides: StreamOverride[]) {
         awayTeam,
         dateKey: toDateKey(game.startTime),
         hasStream: Boolean((override?.streamUrl ?? game.streamUrl) || false),
-      } satisfies GameWithTeams;
+      };
+
+      return applyContextAndCleanup(enriched);
     }),
   );
 }
@@ -132,13 +236,16 @@ async function fetchLiveNbaGames(
 
     return mapped.map((game) => {
       const override = overrideMap.get(game.slug);
-      if (!override) return game;
-      return {
-        ...game,
-        streamType: override.streamType,
-        streamUrl: override.streamUrl,
-        hasStream: Boolean(override.streamUrl),
-      };
+      const merged = override
+        ? {
+            ...game,
+            streamType: override.streamType,
+            streamUrl: override.streamUrl,
+            hasStream: Boolean(override.streamUrl),
+          }
+        : game;
+
+      return applyContextAndCleanup(merged);
     });
   } catch {
     return [];
@@ -149,43 +256,67 @@ function mergeGames(
   liveGames: GameWithTeams[],
   mockGamesEnriched: GameWithTeams[],
 ): GameWithTeams[] {
-  if (liveGames.length === 0) return mockGamesEnriched;
-
-  const seen = new Set(liveGames.map((game) => game.slug));
-  const merged = [...liveGames];
-  for (const mock of mockGamesEnriched) {
-    if (!seen.has(mock.slug)) merged.push(mock);
-  }
-  return sortGames(merged);
+  if (liveGames.length > 0) return sortGames(liveGames);
+  return mockGamesEnriched;
 }
 
-function attachCdnStreams(
+function attachAggregatedStreams(
   games: GameWithTeams[],
   overrideSlugs: Set<string>,
   cdnMatches: CdnLiveTvMatch[],
+  streamedMatches: StreamedMatch[],
 ): GameWithTeams[] {
-  if (cdnMatches.length === 0) return games;
-
   return games.map((game) => {
+    if (game.status === "finished") return game;
     if (overrideSlugs.has(game.slug)) return game;
-    if (shouldUseStreamedOnly(game)) return game;
     if (game.streamUrl) return game;
 
-    const channels = findChannelsForTeams(
-      cdnMatches,
+    if (cdnMatches.length > 0) {
+      const channels = findChannelsForTeams(
+        cdnMatches,
+        game.homeTeam.name,
+        game.awayTeam.name,
+      );
+      const cdnSources = buildSourcesForMatch(channels);
+      const first = cdnSources[0];
+      if (first) {
+        return {
+          ...game,
+          streamType: "cdnlivetv",
+          streamUrl: first.url,
+          hasStream: true,
+        };
+      }
+    }
+
+    const streamedMatch = findStreamedMatch(
+      streamedMatches,
       game.homeTeam.name,
       game.awayTeam.name,
     );
-    const sources = buildSourcesForMatch(channels);
-    const first = sources[0];
-    if (!first) return game;
+    if (streamedMatch) {
+      return {
+        ...game,
+        streamType: "streamed",
+        streamUrl: null,
+        hasStream: true,
+      };
+    }
 
-    return {
-      ...game,
-      streamType: "cdnlivetv",
-      streamUrl: first.url,
-      hasStream: true,
-    };
+    const allStreamEast = buildSourcesForAllStreamEast(
+      game.homeTeam.name,
+      game.awayTeam.name,
+    );
+    if (allStreamEast[0]) {
+      return {
+        ...game,
+        streamType: "allstreameast",
+        streamUrl: allStreamEast[0].url,
+        hasStream: true,
+      };
+    }
+
+    return game;
   });
 }
 
@@ -197,16 +328,31 @@ async function fetchCdnMatchesSafe(): Promise<CdnLiveTvMatch[]> {
   }
 }
 
+async function fetchStreamedMatchesSafe(): Promise<StreamedMatch[]> {
+  try {
+    return await fetchBasketballMatches();
+  } catch {
+    return [];
+  }
+}
+
 export async function getGames(filter: GamesFilter = {}) {
   const overrides = await readOverrides();
   const overrideSlugs = new Set(overrides.map((o) => o.gameSlug));
-  const [liveGames, mockEnriched, cdnMatches] = await Promise.all([
-    fetchLiveNbaGames(overrides),
-    Promise.resolve(enrichGames(mockGames, overrides)),
-    fetchCdnMatchesSafe(),
-  ]);
+  const [liveGames, mockEnriched, cdnMatches, streamedMatches] =
+    await Promise.all([
+      fetchLiveNbaGames(overrides),
+      Promise.resolve(enrichGames(mockGames, overrides)),
+      fetchCdnMatchesSafe(),
+      fetchStreamedMatchesSafe(),
+    ]);
   let games = mergeGames(liveGames, mockEnriched);
-  games = attachCdnStreams(games, overrideSlugs, cdnMatches);
+  games = attachAggregatedStreams(
+    games,
+    overrideSlugs,
+    cdnMatches,
+    streamedMatches,
+  );
 
   if (filter.status && filter.status !== "all") {
     games = games.filter((game) => game.status === filter.status);
@@ -253,24 +399,48 @@ async function getStreamedSources(
   }
 }
 
+async function getCdnSources(
+  homeName: string,
+  awayName: string,
+): Promise<StreamSource[]> {
+  const cdnMatches = await fetchCdnMatchesSafe();
+  if (cdnMatches.length === 0) return [];
+  return buildSourcesForMatch(findChannelsForTeams(cdnMatches, homeName, awayName));
+}
+
+function getAllStreamEastSources(
+  homeName: string,
+  awayName: string,
+): StreamSource[] {
+  return buildSourcesForAllStreamEast(homeName, awayName).map((source) => ({
+    id: source.id,
+    label: source.label,
+    url: source.url,
+    channelName: source.channelName,
+  }));
+}
+
 export async function getGameSources(slug: string): Promise<StreamSource[]> {
   const game = await getGameBySlug(slug);
   if (!game) return [];
+  if (game.status === "finished") return [];
 
-  if (shouldUseStreamedOnly(game)) {
-    return getStreamedSources(game.homeTeam.name, game.awayTeam.name);
-  }
+  const [cdnSources, streamedSources] = await Promise.all([
+    getCdnSources(game.homeTeam.name, game.awayTeam.name),
+    getStreamedSources(game.homeTeam.name, game.awayTeam.name),
+  ]);
+  const allStreamEast = getAllStreamEastSources(
+    game.homeTeam.name,
+    game.awayTeam.name,
+  );
 
-  const cdnMatches = await fetchCdnMatchesSafe();
-  const cdnSources =
-    cdnMatches.length === 0
-      ? []
-      : buildSourcesForMatch(
-          findChannelsForTeams(cdnMatches, game.homeTeam.name, game.awayTeam.name),
-        );
-  if (cdnSources.length > 0) return cdnSources;
-
-  return getStreamedSources(game.homeTeam.name, game.awayTeam.name);
+  const aggregated = [...cdnSources, ...streamedSources, ...allStreamEast];
+  const seen = new Set<string>();
+  return aggregated.filter((source) => {
+    if (seen.has(source.url)) return false;
+    seen.add(source.url);
+    return true;
+  });
 }
 
 export async function getTeams() {
@@ -299,4 +469,3 @@ export async function getAvailableDates() {
   const games = await getGames();
   return Array.from(new Set(games.map((game) => game.dateKey)));
 }
-

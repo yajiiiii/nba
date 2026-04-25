@@ -120,10 +120,18 @@ export function GamePageClient({
 
       <div id="watch" className="scroll-mt-24">
         {game.status !== "finished" &&
-        (game.streamType === "cdnlivetv" || game.streamType === "none") ? (
+        (game.streamType === "cdnlivetv" ||
+          game.streamType === "streamed" ||
+          game.streamType === "allstreameast" ||
+          game.streamType === "none") ? (
           <StreamSourceSwitcher
             slug={game.slug}
-            initialUrl={game.streamType === "cdnlivetv" ? game.streamUrl : null}
+            initialUrl={
+              game.streamType === "cdnlivetv" ||
+              game.streamType === "allstreameast"
+                ? game.streamUrl
+                : null
+            }
             title={`${game.awayTeam.name} vs ${game.homeTeam.name}`}
           />
         ) : (

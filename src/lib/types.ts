@@ -6,6 +6,8 @@ export type StreamType =
   | "vimeo"
   | "hls"
   | "cdnlivetv"
+  | "streamed"
+  | "allstreameast"
   | "none";
 
 export interface Team {

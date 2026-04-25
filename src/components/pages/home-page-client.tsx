@@ -1,6 +1,8 @@
 "use client";
 
-import { CircleAlert, Sparkles } from "lucide-react";
+import { CircleAlert } from "lucide-react";
+
+import { BasketballIcon } from "@/components/shared/basketball-icon";
 import { motion } from "framer-motion";
 
 import { EmptyState } from "@/components/shared/empty-state";
@@ -106,8 +108,8 @@ export function HomePageClient({
                 </h2>
               </div>
               <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs uppercase tracking-[0.2em] text-muted-foreground sm:flex">
-                <Sparkles className="h-4 w-4 text-primary" />
-                Premium NBA only
+                <BasketballIcon className="h-4 w-4 text-primary" />
+                Premium NBA
               </div>
             </div>
             {liveGames.length > 0 ? (

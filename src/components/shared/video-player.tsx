@@ -70,7 +70,9 @@ export function VideoPlayer({
     streamType === "iframe" ||
     streamType === "youtube" ||
     streamType === "vimeo" ||
-    streamType === "cdnlivetv";
+    streamType === "cdnlivetv" ||
+    streamType === "streamed" ||
+    streamType === "allstreameast";
 
   return (
     <Card className="overflow-hidden border-primary/20 bg-[#0c0c0c] shadow-glow">
