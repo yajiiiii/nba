@@ -8,13 +8,27 @@ import { formatGameTime } from "@/lib/formatters";
 import type { GameWithTeams } from "@/lib/types";
 
 export function ScoreTicker({ games }: { games: GameWithTeams[] }) {
-  const tickerGames = games
-    .filter((game) => game.status === "live" || game.status === "upcoming")
+  const live = games
+    .filter((game) => game.status === "live")
     .sort(
       (a, b) =>
         new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+    );
+  const upcoming = games
+    .filter((game) => game.status === "upcoming")
+    .sort(
+      (a, b) =>
+        new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+    );
+  const finished = games
+    .filter((game) => game.status === "finished")
+    .sort(
+      (a, b) =>
+        new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
     )
-    .slice(0, 10);
+    .slice(0, 6);
+
+  const tickerGames = [...live, ...upcoming, ...finished].slice(0, 14);
   const marqueeItems = [...tickerGames, ...tickerGames];
 
   return (
@@ -48,6 +62,16 @@ export function ScoreTicker({ games }: { games: GameWithTeams[] }) {
                 <span className="text-muted-foreground">
                   {formatGameTime(game.startTime)}
                 </span>
+              ) : null}
+              {game.status === "finished" ? (
+                <>
+                  <span className="text-foreground">
+                    {game.score.away} - {game.score.home}
+                  </span>
+                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    Final
+                  </span>
+                </>
               ) : null}
             </Link>
           ))}
