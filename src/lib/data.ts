@@ -15,6 +15,17 @@ import {
   type CdnLiveTvMatch,
   type StreamSource,
 } from "@/lib/providers/cdnlivetv";
+import {
+  buildSourcesForStreamedMatch,
+  fetchBasketballMatches,
+  findStreamedMatch,
+} from "@/lib/providers/streamed";
+
+const STREAMED_ONLY_SLUGS = new Set(["rockets-vs-lakers"]);
+
+function shouldUseStreamedOnly(game: { slug: string }) {
+  return STREAMED_ONLY_SLUGS.has(game.slug);
+}
 import type {
   Game,
   GamesFilter,
@@ -157,6 +168,7 @@ function attachCdnStreams(
 
   return games.map((game) => {
     if (overrideSlugs.has(game.slug)) return game;
+    if (shouldUseStreamedOnly(game)) return game;
     if (game.streamUrl) return game;
 
     const channels = findChannelsForTeams(
@@ -227,19 +239,38 @@ export async function getGameBySlug(slug: string) {
   return games.find((game) => game.slug === slug) ?? null;
 }
 
+async function getStreamedSources(
+  homeName: string,
+  awayName: string,
+): Promise<StreamSource[]> {
+  try {
+    const matches = await fetchBasketballMatches();
+    const match = findStreamedMatch(matches, homeName, awayName);
+    if (!match) return [];
+    return await buildSourcesForStreamedMatch(match);
+  } catch {
+    return [];
+  }
+}
+
 export async function getGameSources(slug: string): Promise<StreamSource[]> {
   const game = await getGameBySlug(slug);
   if (!game) return [];
 
-  const cdnMatches = await fetchCdnMatchesSafe();
-  if (cdnMatches.length === 0) return [];
+  if (shouldUseStreamedOnly(game)) {
+    return getStreamedSources(game.homeTeam.name, game.awayTeam.name);
+  }
 
-  const channels = findChannelsForTeams(
-    cdnMatches,
-    game.homeTeam.name,
-    game.awayTeam.name,
-  );
-  return buildSourcesForMatch(channels);
+  const cdnMatches = await fetchCdnMatchesSafe();
+  const cdnSources =
+    cdnMatches.length === 0
+      ? []
+      : buildSourcesForMatch(
+          findChannelsForTeams(cdnMatches, game.homeTeam.name, game.awayTeam.name),
+        );
+  if (cdnSources.length > 0) return cdnSources;
+
+  return getStreamedSources(game.homeTeam.name, game.awayTeam.name);
 }
 
 export async function getTeams() {

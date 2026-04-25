@@ -94,8 +94,9 @@ export function VideoPlayer({
             <iframe
               src={streamUrl}
               title={title}
-              allow="autoplay; fullscreen; picture-in-picture"
+              allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
               allowFullScreen
+              referrerPolicy="no-referrer"
               className="aspect-video w-full"
             />
           </div>

@@ -24,7 +24,7 @@ export function StreamSourceSwitcher({
   title,
 }: {
   slug: string;
-  initialUrl: string;
+  initialUrl: string | null;
   title: string;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -43,18 +43,21 @@ export function StreamSourceSwitcher({
   });
 
   const sources = data?.sources ?? [];
-  const fallbackSource: Source = {
-    id: "initial",
-    label: "Primary",
-    url: initialUrl,
-    channelName: "Primary",
-  };
-  const list = sources.length > 0 ? sources : [fallbackSource];
-  const active = list[Math.min(activeIndex, list.length - 1)] ?? fallbackSource;
+  const fallbackSource: Source | null = initialUrl
+    ? {
+        id: "initial",
+        label: "Primary",
+        url: initialUrl,
+        channelName: "Primary",
+      }
+    : null;
+  const list: Source[] =
+    sources.length > 0 ? sources : fallbackSource ? [fallbackSource] : [];
+  const active = list[Math.min(activeIndex, Math.max(list.length - 1, 0))];
 
   useEffect(() => {
     setLoadFailed(false);
-  }, [active.url, loadKey]);
+  }, [active?.url, loadKey]);
 
   const handleSelect = (index: number) => {
     setActiveIndex(index);
@@ -74,21 +77,30 @@ export function StreamSourceSwitcher({
           </p>
           <p className="text-sm font-semibold text-foreground">{title}</p>
         </div>
-        <Badge variant="default">{active.channelName}</Badge>
+        <Badge variant="default">{active?.channelName ?? "No source"}</Badge>
       </div>
 
       <div className="p-4">
         <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-black">
-          <iframe
-            key={`${active.id}:${loadKey}`}
-            ref={iframeRef}
-            src={active.url}
-            title={title}
-            allow="autoplay; fullscreen; picture-in-picture"
-            allowFullScreen
-            className="aspect-video w-full"
-            onError={() => setLoadFailed(true)}
-          />
+          {active ? (
+            <iframe
+              key={`${active.id}:${loadKey}`}
+              ref={iframeRef}
+              src={active.url}
+              title={title}
+              allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+              allowFullScreen
+              referrerPolicy="no-referrer"
+              className="aspect-video w-full"
+              onError={() => setLoadFailed(true)}
+            />
+          ) : (
+            <div className="flex aspect-video w-full items-center justify-center px-6 text-center text-sm text-muted-foreground">
+              {isLoading
+                ? "Looking for live sources…"
+                : "No live sources are available for this matchup yet. Check back closer to tip-off."}
+            </div>
+          )}
         </div>
 
         {loadFailed ? (

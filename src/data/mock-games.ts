@@ -45,9 +45,8 @@ export const mockGames: Game[] = [
       away: 108,
     },
     arena: "Crypto.com Arena",
-    streamType: "iframe",
-    streamUrl:
-      "/embed/demo?matchup=Rockets%20vs%20Lakers&label=Licensed%20Demo%20Feed",
+    streamType: "none",
+    streamUrl: null,
     thumbnail: "/thumbnails/rockets-lakers.svg",
     isLive: true,
     featured: true,

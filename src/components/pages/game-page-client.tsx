@@ -119,10 +119,11 @@ export function GamePageClient({
       </section>
 
       <div id="watch" className="scroll-mt-24">
-        {game.streamType === "cdnlivetv" && game.streamUrl ? (
+        {game.status !== "finished" &&
+        (game.streamType === "cdnlivetv" || game.streamType === "none") ? (
           <StreamSourceSwitcher
             slug={game.slug}
-            initialUrl={game.streamUrl}
+            initialUrl={game.streamType === "cdnlivetv" ? game.streamUrl : null}
             title={`${game.awayTeam.name} vs ${game.homeTeam.name}`}
           />
         ) : (

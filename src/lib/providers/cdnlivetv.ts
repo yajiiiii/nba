@@ -201,12 +201,15 @@ export function findChannelsForTeams(
   const home = normalizeTeamToken(homeName);
   const away = normalizeTeamToken(awayName);
 
+  const overlaps = (a: string, b: string) =>
+    a.length > 0 && b.length > 0 && (a.includes(b) || b.includes(a));
+
   const match = matches.find((entry) => {
     const entryHome = normalizeTeamToken(entry.homeTeam);
     const entryAway = normalizeTeamToken(entry.awayTeam);
-    const hasHome = entryHome.includes(home) || home.includes(entryHome);
-    const hasAway = entryAway.includes(away) || away.includes(entryAway);
-    return hasHome && hasAway;
+    const sameOrder = overlaps(entryHome, home) && overlaps(entryAway, away);
+    const swapped = overlaps(entryHome, away) && overlaps(entryAway, home);
+    return sameOrder || swapped;
   });
 
   return match?.channels ?? [];
